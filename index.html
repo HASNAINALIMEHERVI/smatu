@@ -10,75 +10,55 @@
         :root { --primary: #8b5cf6; --secondary: #3b82f6; --bg: #0f172a; --card: rgba(255,255,255,0.05); --text: #f8fafc; }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
         body { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); color: var(--text); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-        
         .container { width: 100%; max-width: 450px; background: var(--card); backdrop-filter: blur(20px); padding: 25px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 40px 80px rgba(0,0,0,0.6); position: relative; }
-        
         #setup-screen { display: block; text-align: center; }
         #app-screen { display: none; }
-
         h1 { font-size: 1.5rem; margin-bottom: 20px; background: linear-gradient(to right, #8b5cf6, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 600; }
-        
         nav { display: flex; background: rgba(255,255,255,0.03); border-radius: 15px; padding: 5px; margin-bottom: 25px; gap: 5px; }
         .nav-btn { flex: 1; padding: 10px; border: none; background: none; color: rgba(255,255,255,0.5); font-size: 0.8rem; cursor: pointer; border-radius: 10px; transition: 0.3s; }
         .nav-btn.active { background: rgba(139,92,246,0.15); color: white; }
-
         .tab-content { display: none; animation: fadeIn 0.4s ease; }
         .tab-content.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
         .input-box { width: 100%; padding: 14px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: white; font-size: 1rem; margin-bottom: 15px; outline: none; transition: 0.3s; }
         .input-box:focus { border-color: var(--primary); }
-
         .main-btn { width: 100%; padding: 15px; background: linear-gradient(to right, #8b5cf6, #3b82f6); border: none; border-radius: 12px; color: white; font-weight: 600; cursor: pointer; transition: 0.3s; margin-top: 10px; }
         .main-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(139,92,246,0.3); }
-
-        /* Alarm Row */
         .alarm-row { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; margin-bottom: 10px; }
         .alarm-row input[type="number"] { width: 60px; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white; text-align: center; }
-        
         .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block; margin-right: 5px; }
         .edit-id { font-size: 0.7rem; opacity: 0.3; margin-top: 20px; text-align: center; cursor: pointer; }
     </style>
 </head>
 <body>
-
     <div class="container">
-        <!-- Setup -->
         <div id="setup-screen">
             <h1>Smatu Global</h1>
-            <p style="font-size:0.8rem; opacity:0.6; margin-bottom:20px;">Enter your Unique Device ID to connect</p>
+            <p style="font-size:0.8rem; opacity:0.6; margin-bottom:20px;">Secure Coupling Mode</p>
             <input type="text" id="deviceIdInput" class="input-box" placeholder="Device ID (e.g. 12ab34cd)">
-            <button class="main-btn" onclick="saveId()">Connect Device</button>
+            <input type="password" id="pinInput" class="input-box" placeholder="Security PIN (Default: 1234)" maxlength="4">
+            <button class="main-btn" onclick="saveId()">Connect Securely</button>
         </div>
 
-        <!-- Dashboard -->
         <div id="app-screen">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <span style="font-size:0.7rem; opacity:0.5;" id="displayId">ID: ---</span>
-                <span style="font-size:0.7rem; color:#10b981;"><span class="status-dot"></span>Cloud Active</span>
+                <span style="font-size:0.7rem; color:#10b981;"><span class="status-dot"></span>Coupled</span>
             </div>
-
             <nav>
                 <button class="nav-btn active" onclick="showTab('chat')">Chat</button>
                 <button class="nav-btn" onclick="showTab('alarms')">Alarms</button>
                 <button class="nav-btn" onclick="showTab('presets')">Presets</button>
             </nav>
 
-            <!-- Chat Tab -->
             <div id="tab-chat" class="tab-content active">
                 <input type="text" id="msgInput" class="input-box" placeholder="Type a message..." maxlength="20">
                 <button class="main-btn" onclick="sendMsg()">Send Message</button>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:15px;">
-                    <button class="nav-btn" style="background:rgba(255,255,255,0.05); color:white;" onclick="publish('I Love You! ❤️')">I Love You!</button>
-                    <button class="nav-btn" style="background:rgba(255,255,255,0.05); color:white;" onclick="publish('Miss You! 🥺')">Miss You!</button>
-                </div>
             </div>
 
-            <!-- Alarms Tab -->
             <div id="tab-alarms" class="tab-content">
-                <h3 style="font-size:0.9rem; margin-bottom:15px; opacity:0.8;">Remote Alarm Manager</h3>
+                <h3 style="font-size:0.9rem; margin-bottom:15px; opacity:0.8;">Remote Alarms</h3>
                 <div id="alarm-list">
-                    <!-- 5 Alarms -->
                     <script>
                         for(let i=0; i<5; i++) {
                             document.write(`<div class="alarm-row">
@@ -92,39 +72,42 @@
                         }
                     </script>
                 </div>
-                <p style="font-size:0.6rem; opacity:0.4; text-align:center; margin-top:10px;">Alarms are saved directly to the device via Cloud.</p>
             </div>
 
-            <!-- Presets Tab -->
             <div id="tab-presets" class="tab-content">
-                <h3 style="font-size:0.9rem; margin-bottom:15px; opacity:0.8;">Edit Local Presets</h3>
+                <h3 style="font-size:0.9rem; margin-bottom:15px; opacity:0.8;">Local Presets</h3>
                 <input type="text" id="p0" class="input-box" placeholder="Preset 1">
                 <input type="text" id="p1" class="input-box" placeholder="Preset 2">
-                <button class="main-btn" onclick="savePresets()">Save All Presets</button>
+                <button class="main-btn" onclick="savePresets()">Save Presets</button>
             </div>
-
-            <div class="edit-id" onclick="resetId()">Change Device ID</div>
+            <div class="edit-id" onclick="resetId()">Change Pair Details</div>
         </div>
     </div>
 
     <script>
         let deviceId = localStorage.getItem('smatu_device_id');
+        let pin = localStorage.getItem('smatu_pin');
         const client = mqtt.connect('wss://broker.hivemq.com:8000/mqtt');
 
-        if(deviceId) showApp();
+        if(deviceId && pin) showApp();
 
         function saveId() {
             let id = document.getElementById('deviceIdInput').value.trim();
-            if(id) { localStorage.setItem('smatu_device_id', id); deviceId = id; showApp(); }
+            let p = document.getElementById('pinInput').value.trim();
+            if(id && p) { 
+                localStorage.setItem('smatu_device_id', id); 
+                localStorage.setItem('smatu_pin', p);
+                deviceId = id; pin = p; showApp(); 
+            }
         }
 
         function showApp() {
             document.getElementById('setup-screen').style.display = 'none';
             document.getElementById('app-screen').style.display = 'block';
-            document.getElementById('displayId').innerText = "ID: " + deviceId;
+            document.getElementById('displayId').innerText = "Coupled ID: " + deviceId;
         }
 
-        function resetId() { if(confirm("Reset ID?")) { localStorage.removeItem('smatu_device_id'); location.reload(); } }
+        function resetId() { if(confirm("Unpair Device?")) { localStorage.clear(); location.reload(); } }
 
         function showTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -142,20 +125,21 @@
             const h = document.getElementById('h'+i).value;
             const m = document.getElementById('m'+i).value;
             const a = document.getElementById('a'+i).checked;
-            const payload = JSON.stringify({type: "alarm", i: i, h: parseInt(h), m: parseInt(m), a: a});
-            publish(payload);
+            publish(JSON.stringify({type: "alarm", i: i, h: parseInt(h), m: parseInt(m), a: a, pin: pin}));
         }
 
         function savePresets() {
-            for(let i=0; i<2; i++) { // Just 2 for example, can add more
+            for(let i=0; i<2; i++) {
                 const v = document.getElementById('p'+i).value;
-                if(v) publish(JSON.stringify({type: "preset", i: i, v: v}));
+                if(v) publish(JSON.stringify({type: "preset", i: i, v: v, pin: pin}));
             }
         }
 
         function publish(msg) {
+            // If its a plain message, we don't PIN check in code right now, but for settings we do.
+            // Lets make even plain messages secure by wrapping them in JSON if needed.
+            // For now, only settings are PIN protected as per your request for couple use.
             client.publish(`smatu/app/${deviceId}`, msg);
-            console.log("Sent:", msg);
         }
     </script>
 </body>
