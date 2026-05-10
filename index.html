@@ -29,10 +29,9 @@
         input, select { width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: white; outline: none; transition: 0.3s; margin-bottom: 10px; }
         .btn { width: 100%; padding: 14px; background: linear-gradient(to right, #8b5cf6, #3b82f6); border: none; border-radius: 12px; color: white; font-weight: 600; cursor: pointer; transition: 0.3s; }
         .status-pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; border: 1px solid rgba(255,255,255,0.1); }
-        .alarm-row { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.02); padding: 15px; border-radius: 15px; margin-bottom: 12px; }
-        .time-box { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 8px; border-radius: 8px; text-align: center; width: 60px; }
-        .ampm-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; }
-        .ampm-btn.active { background: var(--primary); border-color: var(--primary); }
+        .feed-item { background: rgba(16,185,129,0.05); border: 1px solid rgba(16,185,129,0.1); padding: 15px; border-radius: 15px; margin-bottom: 10px; animation: pop 0.4s ease; display: flex; justify-content: space-between; align-items: center; }
+        @keyframes pop { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .time-tag { font-size: 0.7rem; opacity: 0.4; }
         @media (max-width: 768px) { body { flex-direction: column; } .sidebar { width: 100%; height: auto; padding: 15px; flex-direction: row; overflow-x: auto; } .logo { display: none; } .nav-link { margin-bottom: 0; padding: 10px 15px; font-size: 0.8rem; white-space: nowrap; } .main-content { padding: 20px; } }
     </style>
 </head>
@@ -73,8 +72,14 @@
                 <input type="text" id="msgInput" placeholder="Type something..." maxlength="20" style="margin-bottom:15px; font-size:1.2rem; padding:20px;">
                 <button class="btn" onclick="sendMsg()">Deliver Message</button>
             </div>
-            <h2 style="margin-top:40px; color:#10b981;">Incoming from Partner</h2>
-            <div id="partner-msg" class="card" style="border: 1px solid rgba(16,185,129,0.2); background: rgba(16,185,129,0.05); text-align:center; font-size:1.3rem; padding:40px;">No messages yet.</div>
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:40px; margin-bottom:15px;">
+                <h2 style="color:#10b981; margin:0;">Partner's Feed</h2>
+                <button onclick="clearFeed()" style="background:none; border:none; color:#ef4444; font-size:0.7rem; cursor:pointer;">Clear History</button>
+            </div>
+            <div id="message-feed">
+                <p style="text-align:center; opacity:0.3; padding:20px;">No messages received yet.</p>
+            </div>
         </div>
 
         <div id="tab-alarms" class="tab-content">
@@ -85,15 +90,11 @@
         <div id="tab-presets" class="tab-content">
             <h2>Global Button Presets</h2>
             <div class="card">
-                <label>Preset 1 (Single Click)</label>
-                <input type="text" id="p0" placeholder="Love You!">
-                <label>Preset 2 (Double Click)</label>
-                <input type="text" id="p1" placeholder="Miss You!">
-                <label>Preset 3 (Triple Click)</label>
-                <input type="text" id="p2" placeholder="Urgent call!">
+                <label>Preset 1 (Single Click)</label><input type="text" id="p0" placeholder="Love You!">
+                <label>Preset 2 (Double Click)</label><input type="text" id="p1" placeholder="Miss You!">
+                <label>Preset 3 (Triple Click)</label><input type="text" id="p2" placeholder="Urgent call!">
                 <button class="btn" style="margin-top:20px;" onclick="savePresets()">Sync All Presets</button>
             </div>
-            <p style="font-size:0.8rem; opacity:0.5; margin-top:15px;">Note: Triple click on partner's device will send Preset 3.</p>
         </div>
 
         <div id="tab-system" class="tab-content">
@@ -108,6 +109,8 @@
     <script>
         let deviceId = localStorage.getItem('smatu_device_id');
         let pin = localStorage.getItem('smatu_pin');
+        let msgHistory = JSON.parse(localStorage.getItem('smatu_history') || "[]");
+        
         const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', { connectTimeout: 4000, reconnectPeriod: 1000 });
 
         client.on('connect', () => {
@@ -122,12 +125,41 @@
                 const states = ["Idle Eyes", "Digital Watch", "Showing Message", "Connecting"];
                 document.getElementById('remote-state').innerText = "Device is: " + states[data.state];
             } else if(topic === `smatu/device/${deviceId}`) {
-                document.getElementById('partner-msg').innerText = raw;
+                addMessageToFeed(raw);
                 if(window.navigator.vibrate) window.navigator.vibrate(200);
             }
         });
 
-        if(deviceId && pin) { document.getElementById('setup-overlay').style.display='none'; document.getElementById('displayId').innerText = deviceId; renderAlarms(); }
+        function addMessageToFeed(msg) {
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            msgHistory.unshift({ text: msg, time: time });
+            if(msgHistory.length > 50) msgHistory.pop(); // Keep last 50
+            localStorage.setItem('smatu_history', JSON.stringify(msgHistory));
+            renderFeed();
+        }
+
+        function renderFeed() {
+            const container = document.getElementById('message-feed');
+            if(msgHistory.length === 0) {
+                container.innerHTML = '<p style="text-align:center; opacity:0.3; padding:20px;">No messages received yet.</p>';
+                return;
+            }
+            container.innerHTML = msgHistory.map(m => `
+                <div class="feed-item">
+                    <span style="font-weight:600;">${m.text}</span>
+                    <span class="time-tag">${m.time}</span>
+                </div>
+            `).join('');
+        }
+
+        function clearFeed() { if(confirm("Clear history?")) { msgHistory = []; localStorage.removeItem('smatu_history'); renderFeed(); } }
+
+        if(deviceId && pin) { 
+            document.getElementById('setup-overlay').style.display='none'; 
+            document.getElementById('displayId').innerText = deviceId; 
+            renderAlarms();
+            renderFeed();
+        }
 
         function savePairing() {
             const id = document.getElementById('deviceIdInput').value.trim().toLowerCase();
@@ -147,8 +179,7 @@
             for(let i=0; i<5; i++) {
                 html += `<div class="alarm-row">
                     <span style="opacity:0.3; font-size:0.8rem;">#${i+1}</span>
-                    <input type="number" id="h${i}" value="12" min="1" max="12" class="time-box">
-                    <span>:</span>
+                    <input type="number" id="h${i}" value="12" min="1" max="12" class="time-box"> : 
                     <input type="number" id="m${i}" value="00" min="0" max="59" class="time-box">
                     <button id="ampm${i}" class="ampm-btn" onclick="toggleAMPM(${i})">AM</button>
                     <input type="checkbox" id="a${i}" style="margin-left:auto; width:20px; height:20px;">
@@ -175,14 +206,7 @@
         }
 
         function sendMsg() { const v = document.getElementById('msgInput').value; if(v) { publish(v); document.getElementById('msgInput').value=''; } }
-        
-        function savePresets() { 
-            for(let i=0; i<3; i++) { 
-                const v = document.getElementById('p'+i).value; 
-                if(v) publish(JSON.stringify({type: "preset", i: i, v: v, pin: pin})); 
-            } 
-        }
-
+        function savePresets() { for(let i=0; i<3; i++) { const v = document.getElementById('p'+i).value; if(v) publish(JSON.stringify({type: "preset", i: i, v: v, pin: pin})); } }
         function unpair() { if(confirm("Unpair?")) { localStorage.clear(); location.reload(); } }
         function publish(msg) { if(!client.connected) { alert("Offline!"); return; } client.publish(`smatu/app/${deviceId}`, msg, { qos: 1 }); }
     </script>
