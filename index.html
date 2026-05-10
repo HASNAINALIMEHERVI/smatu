@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smatu Global | Premium Dashboard</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#8b5cf6">
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
@@ -107,6 +109,13 @@
     </div>
 
     <script>
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(reg => console.log('SW Registered'));
+            });
+        }
+
         let deviceId = localStorage.getItem('smatu_device_id');
         let pin = localStorage.getItem('smatu_pin');
         let msgHistory = JSON.parse(localStorage.getItem('smatu_history') || "[]");

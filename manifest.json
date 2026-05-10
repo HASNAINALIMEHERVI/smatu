@@ -1,0 +1,16 @@
+{
+  "name": "Smatu Global App",
+  "short_name": "Smatu",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#030712",
+  "theme_color": "#8b5cf6",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2592/2592231.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
