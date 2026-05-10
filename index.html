@@ -6,6 +6,7 @@
     <title>Smatu Global | Premium Dashboard</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#8b5cf6">
+    <link rel="apple-touch-icon" href="icon-512.png">
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
@@ -109,13 +110,6 @@
     </div>
 
     <script>
-        // Register Service Worker
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js').then(reg => console.log('SW Registered'));
-            });
-        }
-
         let deviceId = localStorage.getItem('smatu_device_id');
         let pin = localStorage.getItem('smatu_pin');
         let msgHistory = JSON.parse(localStorage.getItem('smatu_history') || "[]");
@@ -218,6 +212,13 @@
         function savePresets() { for(let i=0; i<3; i++) { const v = document.getElementById('p'+i).value; if(v) publish(JSON.stringify({type: "preset", i: i, v: v, pin: pin})); } }
         function unpair() { if(confirm("Unpair?")) { localStorage.clear(); location.reload(); } }
         function publish(msg) { if(!client.connected) { alert("Offline!"); return; } client.publish(`smatu/app/${deviceId}`, msg, { qos: 1 }); }
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js');
+            });
+        }
     </script>
 </body>
 </html>

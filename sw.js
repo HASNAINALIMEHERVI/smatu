@@ -1,15 +1,15 @@
 const CACHE_NAME = 'smatu-v1';
-const assets = [
+const ASSETS = [
   './',
   './index.html',
-  'https://unpkg.com/mqtt/dist/mqtt.min.js',
-  'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap'
+  './manifest.json',
+  'https://unpkg.com/mqtt/dist/mqtt.min.js'
 ];
 
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(assets)));
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));
 });
 
-self.addEventListener('fetch', e => {
-  e.respondWith(caches.match(e.request).then(res => res || fetch(e.request)));
+self.addEventListener('fetch', (e) => {
+  e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request)));
 });
