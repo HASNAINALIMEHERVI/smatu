@@ -26,7 +26,7 @@
         .setup-card { background: rgba(255,255,255,0.03); backdrop-filter: blur(30px); padding: 40px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); width: 100%; max-width: 400px; text-align: center; }
         .card { background: var(--card); padding: 25px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         h2 { font-size: 1.2rem; margin-bottom: 20px; opacity: 0.9; }
-        input, select { width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: white; outline: none; transition: 0.3s; }
+        input, select { width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: white; outline: none; transition: 0.3s; margin-bottom: 10px; }
         .btn { width: 100%; padding: 14px; background: linear-gradient(to right, #8b5cf6, #3b82f6); border: none; border-radius: 12px; color: white; font-weight: 600; cursor: pointer; transition: 0.3s; }
         .status-pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; border: 1px solid rgba(255,255,255,0.1); }
         .alarm-row { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.02); padding: 15px; border-radius: 15px; margin-bottom: 12px; }
@@ -78,17 +78,22 @@
         </div>
 
         <div id="tab-alarms" class="tab-content">
-            <h2>Remote Alarms (12h Format)</h2>
+            <h2>Remote Alarms</h2>
             <div class="card" id="alarm-container"></div>
         </div>
 
         <div id="tab-presets" class="tab-content">
-            <h2>Global Presets</h2>
+            <h2>Global Button Presets</h2>
             <div class="card">
-                <label>Preset 1</label><input type="text" id="p0" placeholder="e.g. Call Me!">
-                <label>Preset 2</label><input type="text" id="p1" placeholder="e.g. Come Home">
-                <button class="btn" style="margin-top:20px;" onclick="savePresets()">Sync Presets</button>
+                <label>Preset 1 (Single Click)</label>
+                <input type="text" id="p0" placeholder="Love You!">
+                <label>Preset 2 (Double Click)</label>
+                <input type="text" id="p1" placeholder="Miss You!">
+                <label>Preset 3 (Triple Click)</label>
+                <input type="text" id="p2" placeholder="Urgent call!">
+                <button class="btn" style="margin-top:20px;" onclick="savePresets()">Sync All Presets</button>
             </div>
+            <p style="font-size:0.8rem; opacity:0.5; margin-top:15px;">Note: Triple click on partner's device will send Preset 3.</p>
         </div>
 
         <div id="tab-system" class="tab-content">
@@ -164,16 +169,20 @@
             const m = parseInt(document.getElementById('m'+i).value);
             const isPM = document.getElementById('ampm'+i).innerText === 'PM';
             const active = document.getElementById('a'+i).checked;
-            
-            // Convert to 24h
             if (isPM && h < 12) h += 12;
             if (!isPM && h === 12) h = 0;
-            
             publish(JSON.stringify({type: "alarm", i: i, h: h, m: m, a: active, pin: pin}));
         }
 
         function sendMsg() { const v = document.getElementById('msgInput').value; if(v) { publish(v); document.getElementById('msgInput').value=''; } }
-        function savePresets() { for(let i=0; i<2; i++) { const v = document.getElementById('p'+i).value; if(v) publish(JSON.stringify({type: "preset", i: i, v: v, pin: pin})); } }
+        
+        function savePresets() { 
+            for(let i=0; i<3; i++) { 
+                const v = document.getElementById('p'+i).value; 
+                if(v) publish(JSON.stringify({type: "preset", i: i, v: v, pin: pin})); 
+            } 
+        }
+
         function unpair() { if(confirm("Unpair?")) { localStorage.clear(); location.reload(); } }
         function publish(msg) { if(!client.connected) { alert("Offline!"); return; } client.publish(`smatu/app/${deviceId}`, msg, { qos: 1 }); }
     </script>
