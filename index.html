@@ -3,140 +3,203 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smatu Global Controller</title>
+    <title>Smatu Global | Premium Dashboard</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #8b5cf6; --secondary: #3b82f6; --bg: #0f172a; --card: rgba(255,255,255,0.05); --text: #f8fafc; }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
-        body { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); color: var(--text); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-        .container { width: 100%; max-width: 450px; background: var(--card); backdrop-filter: blur(20px); padding: 25px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 40px 80px rgba(0,0,0,0.6); position: relative; }
-        #setup-screen { display: block; text-align: center; }
-        #app-screen { display: none; }
-        h1 { font-size: 1.5rem; margin-bottom: 20px; background: linear-gradient(to right, #8b5cf6, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 600; }
-        nav { display: flex; background: rgba(255,255,255,0.03); border-radius: 15px; padding: 5px; margin-bottom: 25px; gap: 5px; }
-        .nav-btn { flex: 1; padding: 10px; border: none; background: none; color: rgba(255,255,255,0.5); font-size: 0.8rem; cursor: pointer; border-radius: 10px; transition: 0.3s; }
-        .nav-btn.active { background: rgba(139,92,246,0.15); color: white; }
-        .tab-content { display: none; animation: fadeIn 0.4s ease; }
+        :root { --primary: #8b5cf6; --secondary: #3b82f6; --bg: #030712; --card: rgba(255,255,255,0.03); --sidebar: rgba(15, 23, 42, 0.8); }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+        body { background: #030712; color: #f8fafc; height: 100vh; overflow: hidden; display: flex; }
+        
+        /* Background Glows */
+        .glow { position: fixed; width: 300px; height: 300px; background: var(--primary); filter: blur(150px); opacity: 0.15; z-index: -1; border-radius: 50%; }
+        .glow-1 { top: -100px; left: -100px; }
+        .glow-2 { bottom: -100px; right: -100px; background: var(--secondary); }
+
+        /* Sidebar */
+        .sidebar { width: 260px; background: var(--sidebar); backdrop-filter: blur(20px); border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; padding: 30px 20px; transition: 0.3s; z-index: 100; }
+        .logo { font-size: 1.5rem; font-weight: 700; margin-bottom: 40px; display: flex; align-items: center; gap: 10px; background: linear-gradient(to right, #8b5cf6, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .nav-link { padding: 14px 18px; border-radius: 12px; color: rgba(255,255,255,0.6); text-decoration: none; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; transition: 0.3s; cursor: pointer; font-size: 0.95rem; }
+        .nav-link:hover { background: rgba(255,255,255,0.05); color: white; }
+        .nav-link.active { background: rgba(139,92,246,0.15); color: #8b5cf6; border: 1px solid rgba(139,92,246,0.2); }
+
+        /* Content Area */
+        .main-content { flex: 1; padding: 40px; overflow-y: auto; position: relative; }
+        .tab-content { display: none; max-width: 800px; animation: slideIn 0.4s ease; }
         .tab-content.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .input-box { width: 100%; padding: 14px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: white; font-size: 1rem; margin-bottom: 15px; outline: none; transition: 0.3s; }
-        .input-box:focus { border-color: var(--primary); }
-        .main-btn { width: 100%; padding: 15px; background: linear-gradient(to right, #8b5cf6, #3b82f6); border: none; border-radius: 12px; color: white; font-weight: 600; cursor: pointer; transition: 0.3s; margin-top: 10px; }
-        .main-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(139,92,246,0.3); }
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block; margin-right: 5px; }
-        .edit-id { font-size: 0.7rem; opacity: 0.3; margin-top: 20px; text-align: center; cursor: pointer; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+        /* Setup Screen Overlay */
+        #setup-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .setup-card { background: rgba(255,255,255,0.03); backdrop-filter: blur(30px); padding: 40px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); width: 100%; max-width: 400px; text-align: center; }
+
+        /* UI Elements */
+        .card { background: var(--card); padding: 25px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        h2 { font-size: 1.2rem; margin-bottom: 20px; opacity: 0.9; }
+        .input-group { margin-bottom: 20px; }
+        label { display: block; font-size: 0.8rem; opacity: 0.5; margin-bottom: 8px; }
+        input { width: 100%; padding: 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: white; outline: none; transition: 0.3s; }
+        input:focus { border-color: var(--primary); background: rgba(255,255,255,0.08); }
+        .btn { width: 100%; padding: 14px; background: linear-gradient(to right, #8b5cf6, #3b82f6); border: none; border-radius: 12px; color: white; font-weight: 600; cursor: pointer; transition: 0.3s; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(139,92,246,0.3); }
+
+        .status-pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; background: rgba(16,185,129,0.1); color: #10b981; border-radius: 20px; font-size: 0.75rem; border: 1px solid rgba(16,185,129,0.2); }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+        /* Alarm List */
+        .alarm-row { display: flex; align-items: center; gap: 15px; padding: 12px; background: rgba(255,255,255,0.02); border-radius: 12px; margin-bottom: 10px; }
+        .alarm-row input[type="number"] { width: 60px; text-align: center; padding: 8px; }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; padding: 15px; flex-direction: row; overflow-x: auto; }
+            .logo { display: none; }
+            .nav-link { margin-bottom: 0; padding: 10px 15px; font-size: 0.8rem; white-space: nowrap; }
+            .main-content { padding: 20px; }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div id="setup-screen">
-            <h1>Smatu Global</h1>
-            <p style="font-size:0.8rem; opacity:0.6; margin-bottom:20px;">Secure Coupling Mode</p>
-            <input type="text" id="deviceIdInput" class="input-box" placeholder="Device ID (e.g. 12ab34cd)">
-            <input type="password" id="pinInput" class="input-box" placeholder="Security PIN" maxlength="4">
-            <button class="main-btn" onclick="saveId()">Connect Securely</button>
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
+
+    <!-- Setup Overlay -->
+    <div id="setup-overlay">
+        <div class="setup-card">
+            <h1>SMATU GLOBAL</h1>
+            <p style="margin-bottom:25px; opacity:0.6;">Connect to your device from anywhere</p>
+            <div class="input-group">
+                <input type="text" id="deviceIdInput" placeholder="Device ID (e.g. 12ab34cd)">
+            </div>
+            <div class="input-group">
+                <input type="password" id="pinInput" placeholder="Security PIN" maxlength="4">
+            </div>
+            <button class="btn" onclick="savePairing()">Coupled Securely</button>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo">SMATU <span>👁️</span></div>
+        <div class="nav-link active" onclick="showTab('chat', this)"><span>💬</span> Messaging</div>
+        <div class="nav-link" onclick="showTab('alarms', this)"><span>⏰</span> Remote Alarms</div>
+        <div class="nav-link" onclick="showTab('presets', this)"><span>✨</span> Local Presets</div>
+        <div class="nav-link" onclick="showTab('system', this)"><span>⚙️</span> System Settings</div>
+        
+        <div style="margin-top:auto; padding:15px; background:rgba(255,255,255,0.03); border-radius:15px;">
+            <p style="font-size:0.7rem; opacity:0.4; margin-bottom:10px;">DEVICE STATUS</p>
+            <div class="status-pill" id="cloud-status">
+                <div class="status-dot"></div> <span id="status-text">Connecting...</span>
+            </div>
+            <p id="remote-state" style="font-size:0.75rem; margin-top:10px; opacity:0.8;">Syncing with device...</p>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Chat Tab -->
+        <div id="tab-chat" class="tab-content active">
+            <h2>Send Love Message</h2>
+            <div class="card">
+                <input type="text" id="msgInput" placeholder="Type something sweet..." maxlength="20" style="margin-bottom:15px; font-size:1.2rem; padding:20px;">
+                <button class="btn" onclick="sendMsg()">Deliver Message</button>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                <div class="card" style="cursor:pointer; text-align:center;" onclick="publish('I Love You! ❤️')">I Love You! ❤️</div>
+                <div class="card" style="cursor:pointer; text-align:center;" onclick="publish('Miss You! 🥺')">Miss You! 🥺</div>
+            </div>
         </div>
 
-        <div id="app-screen">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                <span style="font-size:0.7rem; opacity:0.5;" id="displayId">ID: ---</span>
-                <span id="mqtt-status" style="font-size:0.7rem; color:#ef4444;"><span class="status-dot" style="background:#ef4444;"></span>Connecting...</span>
+        <!-- Alarms Tab -->
+        <div id="tab-alarms" class="tab-content">
+            <h2>Remote Alarm Management</h2>
+            <div class="card" id="alarm-container">
+                <!-- Alarms will be injected here -->
             </div>
-            <nav>
-                <button class="nav-btn active" onclick="showTab('chat')">Chat</button>
-                <button class="nav-btn" onclick="showTab('alarms')">Alarms</button>
-                <button class="nav-btn" onclick="showTab('presets')">Presets</button>
-            </nav>
+        </div>
 
-            <div id="tab-chat" class="tab-content active">
-                <input type="text" id="msgInput" class="input-box" placeholder="Type a message..." maxlength="20">
-                <button class="main-btn" id="sendBtn" onclick="sendMsg()">Send Message</button>
+        <!-- Presets Tab -->
+        <div id="tab-presets" class="tab-content">
+            <h2>Global Presets</h2>
+            <div class="card">
+                <label>Preset Label 1</label>
+                <input type="text" id="p0" placeholder="e.g. Call Me!" style="margin-bottom:15px;">
+                <label>Preset Label 2</label>
+                <input type="text" id="p1" placeholder="e.g. Come Home">
+                <button class="btn" style="margin-top:20px;" onclick="savePresets()">Sync Presets</button>
             </div>
+        </div>
 
-            <div id="tab-alarms" class="tab-content">
-                <h3 style="font-size:0.9rem; margin-bottom:15px; opacity:0.8;">Remote Alarms</h3>
-                <p style="font-size:0.7rem; opacity:0.5; margin-bottom:10px;">Set alarms from anywhere</p>
-                <div id="alarm-list">
-                    <script>
-                        for(let i=0; i<5; i++) {
-                            document.write(`<div style="display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.03); padding:10px; border-radius:12px; margin-bottom:8px;">
-                                <span style="opacity:0.4; font-size:0.8rem;">#${i+1}</span>
-                                <input type="number" id="h${i}" min="0" max="23" value="00" style="width:45px; background:none; border:1px solid rgba(255,255,255,0.1); color:white; text-align:center;">
-                                <span>:</span>
-                                <input type="number" id="m${i}" min="0" max="59" value="00" style="width:45px; background:none; border:1px solid rgba(255,255,255,0.1); color:white; text-align:center;">
-                                <input type="checkbox" id="a${i}" style="margin-left:auto;">
-                                <button onclick="saveAlarm(${i})" style="padding:5px; background:var(--primary); border:none; color:white; border-radius:5px; font-size:0.7rem;">Set</button>
-                            </div>`);
-                        }
-                    </script>
-                </div>
+        <!-- System Tab -->
+        <div id="tab-system" class="tab-content">
+            <h2>Security & Pair Details</h2>
+            <div class="card">
+                <p style="opacity:0.6; margin-bottom:20px;">Connected to Device: <strong id="displayId">---</strong></p>
+                <button class="btn" style="background:rgba(239,68,68,0.15); color:#ef4444;" onclick="unpair()">Unpair & Disconnect</button>
             </div>
-
-            <div id="tab-presets" class="tab-content">
-                <h3 style="font-size:0.9rem; margin-bottom:15px; opacity:0.8;">Local Presets</h3>
-                <input type="text" id="p0" class="input-box" placeholder="Preset 1">
-                <input type="text" id="p1" class="input-box" placeholder="Preset 2">
-                <button class="main-btn" onclick="savePresets()">Save Presets</button>
-            </div>
-            <div class="edit-id" onclick="resetId()">Unpair & Change ID</div>
         </div>
     </div>
 
     <script>
         let deviceId = localStorage.getItem('smatu_device_id');
         let pin = localStorage.getItem('smatu_pin');
-        const statusText = document.getElementById('mqtt-status');
-        
-        // MQTT Setup
         const client = mqtt.connect('wss://broker.hivemq.com:8000/mqtt');
 
-        client.on('connect', () => {
-            statusText.style.color = "#10b981";
-            statusText.innerHTML = '<span class="status-dot"></span>Cloud Active';
-        });
+        if(deviceId && pin) { document.getElementById('setup-overlay').style.display='none'; initApp(); }
 
-        client.on('error', () => {
-            statusText.style.color = "#ef4444";
-            statusText.innerHTML = '<span class="status-dot" style="background:#ef4444;"></span>Offline';
-        });
-
-        if(deviceId && pin) showApp();
-
-        function saveId() {
-            let id = document.getElementById('deviceIdInput').value.trim().toLowerCase();
-            let p = document.getElementById('pinInput').value.trim();
-            if(id && p) { 
-                localStorage.setItem('smatu_device_id', id); 
+        function savePairing() {
+            const id = document.getElementById('deviceIdInput').value.trim().toLowerCase();
+            const p = document.getElementById('pinInput').value.trim();
+            if(id && p) {
+                localStorage.setItem('smatu_device_id', id);
                 localStorage.setItem('smatu_pin', p);
-                deviceId = id; pin = p; showApp(); 
-            } else { alert("Please enter both ID and PIN"); }
+                location.reload();
+            }
         }
 
-        function showApp() {
-            document.getElementById('setup-screen').style.display = 'none';
-            document.getElementById('app-screen').style.display = 'block';
-            document.getElementById('displayId').innerText = "ID: " + deviceId;
+        function initApp() {
+            document.getElementById('displayId').innerText = deviceId;
+            renderAlarms();
+            
+            client.on('connect', () => {
+                document.getElementById('status-text').innerText = "Cloud Active";
+                client.subscribe(`smatu/status/${deviceId}`);
+            });
+
+            client.on('message', (topic, message) => {
+                if(topic === `smatu/status/${deviceId}`) {
+                    const data = JSON.parse(message.toString());
+                    const states = ["Idle Eyes", "Digital Watch", "Showing Message", "Connecting"];
+                    document.getElementById('remote-state').innerText = "Device is: " + states[data.state];
+                }
+            });
         }
 
-        function resetId() { if(confirm("Unpair Device?")) { localStorage.clear(); location.reload(); } }
-
-        function showTab(tabId) {
+        function showTab(id, el) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('tab-' + tabId).classList.add('active');
-            event.target.classList.add('active');
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            document.getElementById('tab-'+id).classList.add('active');
+            el.classList.add('active');
         }
 
         function sendMsg() {
-            const m = document.getElementById('msgInput').value.trim();
-            if(m) { 
-                publish(m); 
-                document.getElementById('msgInput').value = "";
-                const btn = document.getElementById('sendBtn');
-                btn.innerText = "Message Sent!";
-                setTimeout(() => btn.innerText = "Send Message", 2000);
+            const val = document.getElementById('msgInput').value;
+            if(val) { publish(val); document.getElementById('msgInput').value=''; }
+        }
+
+        function renderAlarms() {
+            let html = '';
+            for(let i=0; i<5; i++) {
+                html += `<div class="alarm-row">
+                    <span style="opacity:0.4;">#${i+1}</span>
+                    <input type="number" id="h${i}" value="00" min="0" max="23">
+                    <span>:</span>
+                    <input type="number" id="m${i}" value="00" min="0" max="59">
+                    <input type="checkbox" id="a${i}" style="margin-left:auto; width:20px;">
+                    <button class="btn" style="width:auto; padding:8px 15px; font-size:0.75rem;" onclick="saveAlarm(${i})">Sync</button>
+                </div>`;
             }
+            document.getElementById('alarm-container').innerHTML = html;
         }
 
         function saveAlarm(i) {
@@ -153,11 +216,11 @@
             }
         }
 
+        function unpair() { if(confirm("Unpair device?")) { localStorage.clear(); location.reload(); } }
+
         function publish(msg) {
-            if (!client.connected) { alert("Not connected to cloud!"); return; }
-            const topic = `smatu/app/${deviceId}`;
-            client.publish(topic, msg, { qos: 1 });
-            console.log("Published to:", topic, "Msg:", msg);
+            if(!client.connected) { alert("Cloud Offline!"); return; }
+            client.publish(`smatu/app/${deviceId}`, msg);
         }
     </script>
 </body>
