@@ -24,8 +24,6 @@
         .input-box:focus { border-color: var(--primary); }
         .main-btn { width: 100%; padding: 15px; background: linear-gradient(to right, #8b5cf6, #3b82f6); border: none; border-radius: 12px; color: white; font-weight: 600; cursor: pointer; transition: 0.3s; margin-top: 10px; }
         .main-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(139,92,246,0.3); }
-        .alarm-row { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; margin-bottom: 10px; }
-        .alarm-row input[type="number"] { width: 60px; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white; text-align: center; }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block; margin-right: 5px; }
         .edit-id { font-size: 0.7rem; opacity: 0.3; margin-top: 20px; text-align: center; cursor: pointer; }
     </style>
@@ -36,14 +34,14 @@
             <h1>Smatu Global</h1>
             <p style="font-size:0.8rem; opacity:0.6; margin-bottom:20px;">Secure Coupling Mode</p>
             <input type="text" id="deviceIdInput" class="input-box" placeholder="Device ID (e.g. 12ab34cd)">
-            <input type="password" id="pinInput" class="input-box" placeholder="Security PIN (Default: 1234)" maxlength="4">
+            <input type="password" id="pinInput" class="input-box" placeholder="Security PIN" maxlength="4">
             <button class="main-btn" onclick="saveId()">Connect Securely</button>
         </div>
 
         <div id="app-screen">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                 <span style="font-size:0.7rem; opacity:0.5;" id="displayId">ID: ---</span>
-                <span style="font-size:0.7rem; color:#10b981;"><span class="status-dot"></span>Coupled</span>
+                <span id="mqtt-status" style="font-size:0.7rem; color:#ef4444;"><span class="status-dot" style="background:#ef4444;"></span>Connecting...</span>
             </div>
             <nav>
                 <button class="nav-btn active" onclick="showTab('chat')">Chat</button>
@@ -53,21 +51,22 @@
 
             <div id="tab-chat" class="tab-content active">
                 <input type="text" id="msgInput" class="input-box" placeholder="Type a message..." maxlength="20">
-                <button class="main-btn" onclick="sendMsg()">Send Message</button>
+                <button class="main-btn" id="sendBtn" onclick="sendMsg()">Send Message</button>
             </div>
 
             <div id="tab-alarms" class="tab-content">
                 <h3 style="font-size:0.9rem; margin-bottom:15px; opacity:0.8;">Remote Alarms</h3>
+                <p style="font-size:0.7rem; opacity:0.5; margin-bottom:10px;">Set alarms from anywhere</p>
                 <div id="alarm-list">
                     <script>
                         for(let i=0; i<5; i++) {
-                            document.write(`<div class="alarm-row">
+                            document.write(`<div style="display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.03); padding:10px; border-radius:12px; margin-bottom:8px;">
                                 <span style="opacity:0.4; font-size:0.8rem;">#${i+1}</span>
-                                <input type="number" id="h${i}" min="0" max="23" value="00">
+                                <input type="number" id="h${i}" min="0" max="23" value="00" style="width:45px; background:none; border:1px solid rgba(255,255,255,0.1); color:white; text-align:center;">
                                 <span>:</span>
-                                <input type="number" id="m${i}" min="0" max="59" value="00">
+                                <input type="number" id="m${i}" min="0" max="59" value="00" style="width:45px; background:none; border:1px solid rgba(255,255,255,0.1); color:white; text-align:center;">
                                 <input type="checkbox" id="a${i}" style="margin-left:auto;">
-                                <button onclick="saveAlarm(${i})" style="padding:5px 10px; font-size:0.7rem; background:rgba(139,92,246,0.2); border:none; color:white; border-radius:5px; cursor:pointer;">Set</button>
+                                <button onclick="saveAlarm(${i})" style="padding:5px; background:var(--primary); border:none; color:white; border-radius:5px; font-size:0.7rem;">Set</button>
                             </div>`);
                         }
                     </script>
@@ -80,31 +79,44 @@
                 <input type="text" id="p1" class="input-box" placeholder="Preset 2">
                 <button class="main-btn" onclick="savePresets()">Save Presets</button>
             </div>
-            <div class="edit-id" onclick="resetId()">Change Pair Details</div>
+            <div class="edit-id" onclick="resetId()">Unpair & Change ID</div>
         </div>
     </div>
 
     <script>
         let deviceId = localStorage.getItem('smatu_device_id');
         let pin = localStorage.getItem('smatu_pin');
+        const statusText = document.getElementById('mqtt-status');
+        
+        // MQTT Setup
         const client = mqtt.connect('wss://broker.hivemq.com:8000/mqtt');
+
+        client.on('connect', () => {
+            statusText.style.color = "#10b981";
+            statusText.innerHTML = '<span class="status-dot"></span>Cloud Active';
+        });
+
+        client.on('error', () => {
+            statusText.style.color = "#ef4444";
+            statusText.innerHTML = '<span class="status-dot" style="background:#ef4444;"></span>Offline';
+        });
 
         if(deviceId && pin) showApp();
 
         function saveId() {
-            let id = document.getElementById('deviceIdInput').value.trim();
+            let id = document.getElementById('deviceIdInput').value.trim().toLowerCase();
             let p = document.getElementById('pinInput').value.trim();
             if(id && p) { 
                 localStorage.setItem('smatu_device_id', id); 
                 localStorage.setItem('smatu_pin', p);
                 deviceId = id; pin = p; showApp(); 
-            }
+            } else { alert("Please enter both ID and PIN"); }
         }
 
         function showApp() {
             document.getElementById('setup-screen').style.display = 'none';
             document.getElementById('app-screen').style.display = 'block';
-            document.getElementById('displayId').innerText = "Coupled ID: " + deviceId;
+            document.getElementById('displayId').innerText = "ID: " + deviceId;
         }
 
         function resetId() { if(confirm("Unpair Device?")) { localStorage.clear(); location.reload(); } }
@@ -117,8 +129,14 @@
         }
 
         function sendMsg() {
-            const m = document.getElementById('msgInput').value;
-            if(m) { publish(m); document.getElementById('msgInput').value = ""; }
+            const m = document.getElementById('msgInput').value.trim();
+            if(m) { 
+                publish(m); 
+                document.getElementById('msgInput').value = "";
+                const btn = document.getElementById('sendBtn');
+                btn.innerText = "Message Sent!";
+                setTimeout(() => btn.innerText = "Send Message", 2000);
+            }
         }
 
         function saveAlarm(i) {
@@ -136,10 +154,10 @@
         }
 
         function publish(msg) {
-            // If its a plain message, we don't PIN check in code right now, but for settings we do.
-            // Lets make even plain messages secure by wrapping them in JSON if needed.
-            // For now, only settings are PIN protected as per your request for couple use.
-            client.publish(`smatu/app/${deviceId}`, msg);
+            if (!client.connected) { alert("Not connected to cloud!"); return; }
+            const topic = `smatu/app/${deviceId}`;
+            client.publish(topic, msg, { qos: 1 });
+            console.log("Published to:", topic, "Msg:", msg);
         }
     </script>
 </body>
