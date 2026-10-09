@@ -6,7 +6,7 @@
     <title>Smatu Global | Premium Dashboard</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#8b5cf6">
-    <link rel="apple-touch-icon" href="icon-512.png">
+    <link rel="apple-touch-icon" href="icon.svg">
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
@@ -45,10 +45,10 @@
     <div id="setup-overlay">
         <div class="setup-card">
             <h1>SMATU GLOBAL</h1>
-            <p style="margin-bottom:25px; opacity:0.6;">Secure Coupling Mode</p>
+            <p style="margin-bottom:25px; opacity:0.6;">Demo device pairing · public MQTT broker</p>
             <input type="text" id="deviceIdInput" placeholder="Device ID">
             <input type="password" id="pinInput" placeholder="Security PIN" maxlength="4">
-            <button class="btn" onclick="savePairing()">Coupled Securely</button>
+            <button class="btn" onclick="savePairing()">Pair device</button>
         </div>
     </div>
 
@@ -112,7 +112,11 @@
     <script>
         let deviceId = localStorage.getItem('smatu_device_id');
         let pin = localStorage.getItem('smatu_pin');
-        let msgHistory = JSON.parse(localStorage.getItem('smatu_history') || "[]");
+        let msgHistory = [];
+        try {
+            const stored = JSON.parse(localStorage.getItem('smatu_history') || '[]');
+            if (Array.isArray(stored)) msgHistory = stored.filter(m => typeof m.text === 'string' && typeof m.time === 'string').slice(0, 50);
+        } catch { localStorage.removeItem('smatu_history'); }
         
         const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt', { connectTimeout: 4000, reconnectPeriod: 1000 });
 
@@ -121,12 +125,16 @@
             if(deviceId) { client.subscribe(`smatu/status/${deviceId}`); client.subscribe(`smatu/device/${deviceId}`); }
         });
 
-        client.on('message', (topic, message) => {
+        client.on('offline', () => { document.getElementById('status-text').textContent = 'Offline'; });
+        client.on('error', () => { document.getElementById('status-text').textContent = 'Connection error'; });
+        client.on('message' , (topic, message) => {
             const raw = message.toString();
             if(topic === `smatu/status/${deviceId}`) {
-                const data = JSON.parse(raw);
+                let data;
+                try { data = JSON.parse(raw); } catch { return; }
+                if (!data || !Number.isInteger(data.state)) return;
                 const states = ["Idle Eyes", "Digital Watch", "Showing Message", "Connecting"];
-                document.getElementById('remote-state').innerText = "Device is: " + states[data.state];
+                document.getElementById('remote-state').innerText = "Device is: " + (states[data.state] || "Unknown");
             } else if(topic === `smatu/device/${deviceId}`) {
                 addMessageToFeed(raw);
                 if(window.navigator.vibrate) window.navigator.vibrate(200);
@@ -147,12 +155,13 @@
                 container.innerHTML = '<p style="text-align:center; opacity:0.3; padding:20px;">No messages received yet.</p>';
                 return;
             }
-            container.innerHTML = msgHistory.map(m => `
-                <div class="feed-item">
-                    <span style="font-weight:600;">${m.text}</span>
-                    <span class="time-tag">${m.time}</span>
-                </div>
-            `).join('');
+            container.replaceChildren();
+            for (const message of msgHistory) {
+                const row = document.createElement('div'); row.className = 'feed-item';
+                const text = document.createElement('span'); text.style.fontWeight = '600'; text.textContent = message.text;
+                const time = document.createElement('span'); time.className = 'time-tag'; time.textContent = message.time;
+                row.append(text, time); container.append(row);
+            }
         }
 
         function clearFeed() { if(confirm("Clear history?")) { msgHistory = []; localStorage.removeItem('smatu_history'); renderFeed(); } }
@@ -167,7 +176,7 @@
         function savePairing() {
             const id = document.getElementById('deviceIdInput').value.trim().toLowerCase();
             const p = document.getElementById('pinInput').value.trim();
-            if(id && p) { localStorage.setItem('smatu_device_id', id); localStorage.setItem('smatu_pin', p); location.reload(); }
+            if (/^[a-f0-9]{1,16}$/.test(id) && /^\d{4}$/.test(p)) { localStorage.setItem('smatu_device_id', id); localStorage.setItem('smatu_pin', p); location.reload(); } else { alert("Enter a hexadecimal Device ID and a 4-digit PIN."); }
         }
 
         function showTab(id, el) {
@@ -203,20 +212,21 @@
             const m = parseInt(document.getElementById('m'+i).value);
             const isPM = document.getElementById('ampm'+i).innerText === 'PM';
             const active = document.getElementById('a'+i).checked;
+            if (!Number.isInteger(h) || h < 1 || h > 12 || !Number.isInteger(m) || m < 0 || m > 59) { alert("Enter a valid alarm time."); return; }
             if (isPM && h < 12) h += 12;
             if (!isPM && h === 12) h = 0;
             publish(JSON.stringify({type: "alarm", i: i, h: h, m: m, a: active, pin: pin}));
         }
 
-        function sendMsg() { const v = document.getElementById('msgInput').value; if(v) { publish(v); document.getElementById('msgInput').value=''; } }
+        function sendMsg() { const v = document.getElementById('msgInput').value.trim(); if(v) { publish(JSON.stringify({type: "message", v: v.slice(0,20), pin: pin})); document.getElementById('msgInput').value=''; } }
         function savePresets() { for(let i=0; i<3; i++) { const v = document.getElementById('p'+i).value; if(v) publish(JSON.stringify({type: "preset", i: i, v: v, pin: pin})); } }
-        function unpair() { if(confirm("Unpair?")) { localStorage.clear(); location.reload(); } }
-        function publish(msg) { if(!client.connected) { alert("Offline!"); return; } client.publish(`smatu/app/${deviceId}`, msg, { qos: 1 }); }
+        function unpair() { if(confirm("Unpair?")) { ['smatu_device_id', 'smatu_pin', 'smatu_history'].forEach(key => localStorage.removeItem(key)); location.reload(); } }
+        function publish(msg) { if(!deviceId || !pin || !client.connected) { alert("Offline!"); return; } client.publish(`smatu/app/${deviceId}`, msg, { qos: 1 }); }
 
         // Register Service Worker for PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js');
+                navigator.serviceWorker.register('./sw.js').catch(() => console.warn('Offline support unavailable.'));
             });
         }
     </script>

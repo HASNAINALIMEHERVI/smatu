@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -295,43 +296,29 @@ void sendToCloud(String msg) {
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
-  String rawMsg = "";
-  for (int i = 0; i < length; i++) rawMsg += (char)payload[i];
-  Serial.print("MQTT Received [");
-  Serial.print(topic);
-  Serial.print("]: ");
-  Serial.println(rawMsg);
-  
-  if (rawMsg.startsWith("{")) {
-      // Security Check: Message must contain the correct PIN
-      if (rawMsg.indexOf("\"pin\":\"" + securityPin + "\"") < 0) {
-          Serial.println("Unauthorized JSON attempt! PIN mismatch.");
-          return;
-      }
-      Serial.println("Secure JSON command accepted.");
-
-      if (rawMsg.indexOf("\"type\":\"alarm\"") > 0) {
-          int idx = rawMsg.substring(rawMsg.indexOf("\"i\":")+4).toInt();
-          alarms[idx].hour = rawMsg.substring(rawMsg.indexOf("\"h\":")+4).toInt();
-          alarms[idx].minute = rawMsg.substring(rawMsg.indexOf("\"m\":")+4).toInt();
-          alarms[idx].active = (rawMsg.indexOf("\"a\":true") > 0);
-          saveAlarms();
-      } else if (rawMsg.indexOf("\"type\":\"preset\"") > 0) {
-          int idx = rawMsg.substring(rawMsg.indexOf("\"i\":")+4).toInt();
-          int start = rawMsg.indexOf("\"v\":\"") + 5;
-          int end = rawMsg.indexOf("\"", start);
-          presets[idx] = rawMsg.substring(start, end);
-          savePresets();
-      }
-  } else {
-      // Regular Message
-      rawMsg.trim(); // Clean up the message
-      currentMsg = rawMsg;
-      currentState = MESSAGE;
-      stateStartTime = millis();
-      Serial.print("Displaying Message: ");
-      Serial.println(currentMsg);
-      notifyMessage();
+  if (length > 512) return;
+  StaticJsonDocument<512> command;
+  if (deserializeJson(command, payload, length)) return;
+  if (!command["pin"].is<const char*>() || securityPin != command["pin"].as<String>()) return;
+  const String type = command["type"] | "";
+  if (type == "alarm") {
+    if (!command["i"].is<int>() || !command["h"].is<int>() || !command["m"].is<int>() || !command["a"].is<bool>()) return;
+    const int index = command["i"], hour = command["h"], minute = command["m"];
+    if (index < 0 || index >= 5 || hour < 0 || hour > 23 || minute < 0 || minute > 59) return;
+    alarms[index].hour = hour; alarms[index].minute = minute; alarms[index].active = command["a"];
+    saveAlarms();
+  } else if (type == "preset" || type == "message") {
+    if (!command["v"].is<const char*>()) return;
+    String text = command["v"].as<String>(); text.trim();
+    if (!text.length() || text.length() > 80) return;
+    if (type == "preset") {
+      if (!command["i"].is<int>()) return;
+      const int index = command["i"];
+      if (index < 0 || index >= 3) return;
+      presets[index] = text; savePresets();
+    } else {
+      currentMsg = text; currentState = MESSAGE; stateStartTime = millis(); notifyMessage();
+    }
   }
 }
 
@@ -559,6 +546,7 @@ void setup() {
     ArduinoOTA.setHostname("Smatu-Device");
     ArduinoOTA.begin();
 
+    mqttClient.setBufferSize(512);
     mqttClient.setServer(mqttServer, 1883);
     mqttClient.setCallback(mqttCallback);
 }
